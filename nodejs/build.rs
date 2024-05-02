@@ -197,10 +197,10 @@ fn main() -> anyhow::Result<()> {
     }
 
     let os_libs = match os {
-        Ok(TargetOS::Darwin) => ["c++"].as_ref(),
+        Ok(TargetOS::Darwin) => ["c++", "CoreFoundation"].as_ref(),
         Ok(TargetOS::Linux) => ["stdc++"].as_ref(),
         Ok(TargetOS::Win32) => {
-            ["dbghelp", "winmm", "iphlpapi", "psapi", "crypt32", "user32"].as_ref()
+            ["dbghelp", "winmm", "iphlpapi", "psapi", "crypt32", "user32", "shell32", "ole32"].as_ref()
         }
         Err(_) => [].as_ref(),
     };
