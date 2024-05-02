@@ -136,7 +136,7 @@ extern "C" {
         );
 
         v8::V8::Dispose();
-        v8::V8::ShutdownPlatform();
+        v8::V8::DisposePlatform();
 
         return result;
     }

@@ -61,7 +61,7 @@ jobs:
         if: runner.os == 'Windows'
 
       - name: Install rust-bindgen
-        run: cargo install bindgen
+        run: cargo install bindgen-cli
 
       - name: Download source code of Node.js
         run: python -m scripts.download
@@ -89,7 +89,7 @@ jobs:
       - name: Archive
         run: |
           zipname=$(python -m scripts.archive)
-          echo "::set-output name=zipname::$zipname"
+          echo $zipname >> $GITHUB_OUTPUT
         shell: bash
         id: archive
 
