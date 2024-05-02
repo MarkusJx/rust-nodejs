@@ -42,7 +42,8 @@ namespace {
         node::MultiIsolatePlatform* platform,
         const std::vector<std::string>& args,
         const std::vector<std::string>& exec_args,
-        napi_addon_register_func napi_reg_func
+        napi_addon_register_func napi_reg_func,
+        bool run_deferred
     ) {
         std::vector<std::string> errors;
         std::unique_ptr<node::CommonEnvironmentSetup> setup =
@@ -55,13 +56,13 @@ namespace {
             );
 
         if (!setup) {
-            return { 1, join_errors(errors) };
+            return { 1, join_errors(errors), nullptr };
         }
 
         v8::Isolate* isolate = setup->isolate();
         node::Environment* env = setup->env();
 
-        node_run_result_t result { 0, nullptr };
+        node_run_result_t result { 0, nullptr, nullptr };
         node::SetProcessExitHandler(env, [&](node::Environment* env, int exit_code) {
             result.exit_code = exit_code;
             node::Stop(env);
@@ -98,7 +99,12 @@ namespace {
                     result.exit_code = evtloop_ret;
                 }
             }
-            node::Stop(env);
+
+            if (run_deferred) {
+                result.env = env;
+            } else {
+                node::Stop(env);
+            }
         }
             
         return result;
@@ -132,12 +138,29 @@ extern "C" {
 
         node_run_result_t result = RunNodeInstance(
             platform.get(), process_args, exec_args,
-            napi_addon_register_func(options.napi_reg_func)
+            napi_addon_register_func(options.napi_reg_func),
+            options.run_deferred != 0
         );
+
+        if (options.run_deferred == 0) {
+            v8::V8::Dispose();
+            v8::V8::DisposePlatform();
+        }
+
+        return result;
+    }
+
+    int node_dispose(void* env) {
+        if (env == nullptr) {
+            return 1;
+        }
+
+        node::Environment* node_env = static_cast<node::Environment*>(env);
+        node::Stop(node_env);
 
         v8::V8::Dispose();
         v8::V8::DisposePlatform();
 
-        return result;
+        return 0;
     }
 }

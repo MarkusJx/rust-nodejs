@@ -25,6 +25,7 @@ pub unsafe fn run_raw(napi_reg_func: *mut ::std::os::raw::c_void) -> i32 {
         process_argc: argc_c.len() as c_int,
         process_argv: argc_c.as_ptr(),
         napi_reg_func,
+        run_deferred: 0
     });
 
     if !result.error.is_null() {
