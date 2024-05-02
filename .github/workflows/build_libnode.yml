@@ -87,7 +87,7 @@ jobs:
       - name: Archive
         run: |
           zipname=$(python -m scripts.archive)
-          echo "$zipname" >> $GITHUB_OUTPUT
+          echo "zipname=$zipname" >> $GITHUB_OUTPUT
         shell: bash
         id: archive
 
