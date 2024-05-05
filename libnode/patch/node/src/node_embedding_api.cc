@@ -13,6 +13,14 @@
 #include "v8.h"
 
 namespace {
+std::mutex env_mutex;
+node::Environment* env_ptr = nullptr;
+
+void set_env(node::Environment* env) {
+  std::lock_guard<std::mutex> guard(env_mutex);
+  env_ptr = env;
+}
+
 char* join_errors(const std::vector<std::string>& errors) {
   std::string joined_error;
   for (std::size_t i = 0; i < errors.size(); ++i) {
@@ -41,20 +49,19 @@ std::vector<std::string> create_arg_vec(int argc, const char* const* argv) {
 node_run_result_t RunNodeInstance(node::MultiIsolatePlatform* platform,
                                   const std::vector<std::string>& args,
                                   const std::vector<std::string>& exec_args,
-                                  napi_addon_register_func napi_reg_func,
-                                  bool run_deferred) {
+                                  napi_addon_register_func napi_reg_func) {
   std::vector<std::string> errors;
   std::unique_ptr<node::CommonEnvironmentSetup> setup =
       node::CommonEnvironmentSetup::Create(platform, &errors, args, exec_args);
 
   if (!setup) {
-    return {1, join_errors(errors), nullptr};
+    return {1, join_errors(errors)};
   }
 
   v8::Isolate* isolate = setup->isolate();
   node::Environment* env = setup->env();
 
-  node_run_result_t result{0, nullptr, nullptr};
+  node_run_result_t result{0, nullptr};
   node::SetProcessExitHandler(env, [&](node::Environment* env, int exit_code) {
     result.exit_code = exit_code;
   });
@@ -88,14 +95,12 @@ node_run_result_t RunNodeInstance(node::MultiIsolatePlatform* platform,
       result.exit_code = 1;
     }
 
+    set_env(env);
     result.exit_code = node::SpinEventLoop(env).FromMaybe(0);
+    set_env(nullptr);
   }
 
-  if (run_deferred) {
-    result.env = env;
-  } else {
-    node::Stop(env);
-  }
+  node::Stop(env);
 
   return result;
 }
@@ -113,7 +118,7 @@ node_run_result_t node_run(node_options_t options) {
            node::ProcessInitializationFlags::kNoInitializeNodeV8Platform});
 
   if (result->early_return() != 0) {
-    return {result->exit_code(), join_errors(result->errors()), nullptr};
+    return {result->exit_code(), join_errors(result->errors())};
   }
 
   std::unique_ptr<node::MultiIsolatePlatform> platform =
@@ -125,31 +130,22 @@ node_run_result_t node_run(node_options_t options) {
       RunNodeInstance(platform.get(),
                       result->args(),
                       result->exec_args(),
-                      napi_addon_register_func(options.napi_reg_func),
-                      options.run_deferred != 0);
+                      napi_addon_register_func(options.napi_reg_func));
 
-  if (options.run_deferred == 0) {
-    v8::V8::Dispose();
-    v8::V8::DisposePlatform();
+  v8::V8::Dispose();
+  v8::V8::DisposePlatform();
 
-    node::TearDownOncePerProcess();
-  }
+  node::TearDownOncePerProcess();
 
   return ret;
 }
 
-int node_dispose(void* env) {
-  if (env == nullptr) {
-    return 1;
+int node_stop() {
+  std::lock_guard<std::mutex> guard(env_mutex);
+  if (env_ptr == nullptr) {
+    return -1;
   }
 
-  node::Environment* node_env = static_cast<node::Environment*>(env);
-  node::Stop(node_env);
-
-  v8::V8::Dispose();
-  v8::V8::DisposePlatform();
-  node::TearDownOncePerProcess();
-
-  return 0;
+  return node::Stop(env_ptr);
 }
 }

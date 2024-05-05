@@ -1,71 +1,45 @@
 #![doc = include_str!("../README.md")]
 
+pub mod error;
+pub mod raw;
 mod sys;
 
-#[cfg(feature = "neon")]
-pub use neon;
+#[cfg(feature = "napi")]
+use napi::Env;
 #[cfg(feature = "neon")]
 use neon::context::ModuleContext;
 #[cfg(feature = "neon")]
 use neon::result::NeonResult;
 
-use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_int};
+pub use crate::error::Result;
+#[cfg(feature = "neon")]
+pub use neon;
 
-pub unsafe fn run_raw(napi_reg_func: *mut ::std::os::raw::c_void) -> i32 {
-    let args: Vec<CString> = std::env::args()
-        .map(|arg| CString::new(arg).unwrap_or_default())
-        .collect();
-    let mut argc_c = Vec::<*const c_char>::with_capacity(args.len());
-    for arg in &args {
-        argc_c.push(arg.as_ptr() as *const c_char)
+static NODE_EXECUTED: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
+
+#[cfg(any(feature = "neon", feature = "napi"))]
+fn run_inner<F: FnOnce() -> Result<()>>(f: F) -> Result<()> {
+    let mut executed = NODE_EXECUTED
+        .lock()
+        .map_err(|_| error::NodeError::new("Mutex lock failed".to_string(), 1))?;
+
+    if *executed {
+        Err(error::NodeError::new(
+            "Node.js is already running".to_string(),
+            1,
+        ))
+    } else {
+        *executed = true;
+        f()
     }
-
-    let result = sys::node_run(sys::node_options_t {
-        process_argc: argc_c.len() as c_int,
-        process_argv: argc_c.as_ptr(),
-        napi_reg_func,
-        run_deferred: 0
-    });
-
-    if !result.error.is_null() {
-        let result_error_string = CString::from(CStr::from_ptr(result.error));
-        libc::free(result.error as _);
-        panic!("Node.js failed to start: {:?}", result_error_string);
-    }
-    result.exit_code as i32
 }
 
-/// Starts a Node.js instance and immediately run the provided N-API module init function.
-/// Blocks until the event loop stops, and returns the exit code.
-/// # Safety
-/// This function can only be called at most once.
 #[cfg(feature = "neon")]
-pub unsafe fn run_neon<F: for<'a> FnOnce(ModuleContext<'a>) -> NeonResult<()>>(f: F) -> i32 {
-    use std::ptr::null_mut;
-    use std::sync::Once;
-    static mut MODULE_INIT_FN: *mut std::ffi::c_void = null_mut(); // *mut Option<F>
+pub fn run_neon<F: for<'a> FnOnce(ModuleContext<'a>) -> NeonResult<()>>(f: F) -> Result<()> {
+    run_inner(|| unsafe { raw::run_neon(f) })
+}
 
-    let mut module_init_fn = Some(f);
-    MODULE_INIT_FN = (&mut module_init_fn) as *mut Option<F> as _;
-
-    unsafe extern "C" fn napi_reg_func<F: for<'a> FnOnce(ModuleContext<'a>) -> NeonResult<()>>(
-        env: neon::macro_internal::runtime::raw::Env,
-        m: neon::macro_internal::runtime::raw::Local,
-    ) -> neon::macro_internal::runtime::raw::Local {
-        neon::macro_internal::initialize_module(env, std::mem::transmute(m), |ctx| {
-            static ONCE: Once = Once::new();
-            let mut result = NeonResult::Ok(());
-            ONCE.call_once(|| {
-                let module_init_fn = (MODULE_INIT_FN as *mut Option<F>).as_mut().unwrap();
-                let module_init_fn = module_init_fn.take().unwrap();
-                MODULE_INIT_FN = null_mut();
-                result = module_init_fn(ctx)
-            });
-            result
-        });
-        m
-    }
-
-    run_raw(napi_reg_func::<F> as _)
+#[cfg(feature = "napi")]
+pub fn run_napi<F: FnOnce(Env) -> napi::Result<()>>(f: F) -> Result<()> {
+    run_inner(|| unsafe { raw::run_napi(f) })
 }

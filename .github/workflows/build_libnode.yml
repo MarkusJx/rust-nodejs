@@ -75,8 +75,8 @@ jobs:
         shell: bash
         run: |
           if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-            export CC=gcc-11
-            export CXX=g++-11
+            export CC=gcc-13
+            export CXX=g++-13
           fi
           python -m scripts.build
 

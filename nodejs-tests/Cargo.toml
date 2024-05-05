@@ -9,7 +9,9 @@ publish = false
 full-icu = [ "nodejs/full-icu" ]
 
 [dependencies]
-nodejs = { path = "../nodejs", features = [ "neon" ] }
+nodejs = { path = "../nodejs", features = [ "neon", "napi" ] }
+napi = "2.14.1"
+napi-derive = "2.14.6"
 
 [dev-dependencies]
 anyhow = "1"

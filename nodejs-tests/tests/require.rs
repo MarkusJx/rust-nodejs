@@ -9,8 +9,8 @@ use std::path::PathBuf;
 #[chazi::test(check_reach)]
 fn test_require_builtin() {
     let mut script_result = String::new();
-    let exit_code = unsafe {
-        nodejs::run_neon(|mut cx| {
+    let res = unsafe {
+        nodejs::raw::run_neon(|mut cx| {
             let script = cx.string("require('http').STATUS_CODES[418]");
             let status_text = eval(&mut cx, script)?;
             script_result = status_text
@@ -19,7 +19,8 @@ fn test_require_builtin() {
             Ok(())
         })
     };
-    assert_eq!(exit_code, 0);
+
+    assert!(res.is_ok());
     assert_eq!(script_result, "I'm a Teapot");
     chazi::reached::last()
 }
@@ -64,8 +65,8 @@ fn test_require_external_napi() {
     assert!(npm_install_status.success());
 
     let mut add_result = 0;
-    let exit_code = unsafe {
-        nodejs::run_neon(|mut cx| {
+    let res = unsafe {
+        nodejs::raw::run_neon(|mut cx| {
             let module_path = cx.string(napi_module_installed_dir);
             let js_fn_script = cx.string(
                 "module_path => { \
@@ -82,7 +83,8 @@ fn test_require_external_napi() {
             Ok(())
         })
     };
+
     assert_eq!(add_result, 42);
-    assert_eq!(exit_code, 0);
+    assert!(res.is_ok());
     chazi::reached::last();
 }
