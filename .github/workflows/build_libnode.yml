@@ -33,6 +33,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Update
+        run: apt-get update
+      - name: Install ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
+        with:
+          create-symlink: true
 
       - uses: actions/setup-python@v2
         with:
@@ -40,6 +47,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ github.event.inputs.nodeVersion }}
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Install nasm on Windows
         run: choco install -y nasm
@@ -70,13 +78,19 @@ jobs:
 
       - name: Visual Studio shell
         uses: egor-tensin/vs-shell@v2
+        if: runner.os == 'Windows'
+      - uses: Swatinem/rust-cache@v2
 
       - name: Build
         shell: bash
         run: |
           if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-            export CC=gcc-13
-            export CXX=g++-13
+            export CC="ccache gcc-12"
+            export CXX="ccache g++-12"
+            apt-get update && apt-get install -y gcc-12 g++-12 libclang-dev
+          elif [[ "$OSTYPE" == "darwin"* ]]; then
+            export CC="ccache cc"
+            export CXX="ccache c++"
           fi
           python -m scripts.build
 

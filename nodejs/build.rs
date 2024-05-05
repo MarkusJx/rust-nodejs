@@ -4,10 +4,10 @@ use std::ffi::OsStr;
 use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
-use strum::ToString;
+use strum::Display;
 
 const NODE_VERSION: &str = "v18.4.0";
-#[derive(Debug, Eq, PartialEq, Copy, Clone, ToString)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Display)]
 #[strum(serialize_all = "camelCase")]
 enum TargetOS {
     Darwin,
@@ -15,7 +15,7 @@ enum TargetOS {
     Linux,
 }
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone, ToString)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Display)]
 #[strum(serialize_all = "camelCase")]
 enum TargetArch {
     X64,
@@ -154,7 +154,7 @@ fn main() -> anyhow::Result<()> {
             },
             full_icu: env::var("CARGO_FEATURE_FULL_ICU").is_ok(),
         };
-        let sha256 = get_sha256_for_filename(config.zip_name().as_str()).expect(&format!(
+        let sha256 = get_sha256_for_filename(config.zip_name().as_str()).unwrap_or_else(|| panic!(
             "No sha256 checksum found for filename: {}",
             config.zip_name().as_str()
         ));
