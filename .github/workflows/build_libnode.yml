@@ -33,6 +33,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - run: gcc --version
+        if: runner.os == 'Linux'
       - name: Update
         run: sudo apt-get update
         if: runner.os == 'Linux'
@@ -48,7 +50,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ github.event.inputs.nodeVersion }}
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      #- uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Install nasm on Windows
         run: choco install -y nasm
