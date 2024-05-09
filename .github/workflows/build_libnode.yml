@@ -32,9 +32,7 @@ jobs:
         working-directory: libnode
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-      - run: gcc --version
-        if: runner.os == 'Linux'
+        uses: actions/checkout@v4
       - name: Update
         run: sudo apt-get update
         if: runner.os == 'Linux'
@@ -44,7 +42,7 @@ jobs:
         with:
           create-symlink: true
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
       - uses: actions/setup-node@v4
@@ -84,9 +82,23 @@ jobs:
         if: runner.os == 'Windows'
       - uses: Swatinem/rust-cache@v2
 
+      - name: Build docker image
+        run: docker build . -t libnode-build
+        if: runner.os == 'Linux'
+        working-directory: docker
+
       - name: Build
         shell: bash
         run: python -m scripts.build
+        if: runner.os != 'Linux'
+      - name: Build linux
+        uses: addnab/docker-run-action@v3
+        with:
+          image: libnode-build
+          options: -v ${{ github.workspace }}:/app
+          run: |
+            cd libnode
+            python -m scripts.build
 
       - name: Postprocess
         run: python -m scripts.postproc
@@ -103,20 +115,29 @@ jobs:
         id: archive
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.archive.outputs.zipname }}
           path: libnode/${{ steps.archive.outputs.zipname }}
 
       - name: Test
         run: python -m scripts.test
+        if: runner.os != 'Linux'
+      - name: Test linux
+        uses: addnab/docker-run-action@v3
+        with:
+          image: libnode-build
+          options: -v ${{ github.workspace }}:/app
+          run: |
+            cd libnode
+            python -m scripts.test
 
   gh_release:
     needs: build
     runs-on: ubuntu-22.04
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           path: ${{ runner.temp }}
       - name: Compute checksums
@@ -131,13 +152,12 @@ jobs:
           echo '```' >> ../release_notes.md
       - name: Create release
         id: create_release
-        uses: actions/create-release@v1
+        uses: ncipollo/release-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "libnode-${{ env.LIBNODE_NODE_VERSION }}"
-          release_name: "libnode-${{ env.LIBNODE_NODE_VERSION }}"
-          body_path: ${{ runner.temp }}/release_notes.md
+          tag: "libnode-${{ env.LIBNODE_NODE_VERSION }}"
+          bodyFile: ${{ runner.temp }}/release_notes.md
       - name: Upload release assets
         uses: csexton/release-asset-action@v2
         with:
