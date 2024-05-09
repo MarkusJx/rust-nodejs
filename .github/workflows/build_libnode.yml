@@ -98,7 +98,7 @@ jobs:
           options: -v ${{ github.workspace }}:/app
           run: |
             cd libnode
-            python -m scripts.build
+            python3 -m scripts.build
 
       - name: Postprocess
         run: python -m scripts.postproc
@@ -130,7 +130,7 @@ jobs:
           options: -v ${{ github.workspace }}:/app
           run: |
             cd libnode
-            python -m scripts.test
+            python3 -m scripts.test
 
   gh_release:
     needs: build
