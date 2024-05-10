@@ -30,8 +30,10 @@ hex = "0.4"
 zip-extract = "0.1"
 strum = { version = "0.26", features = [ "derive" ] }
 anyhow = "1"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
 
 [build-dependencies.attohttpc]
 version = "0.28"
 default-features = false # No need for the compress feature
-features = [ "rustls" ]
+features = [ "rustls", "json" ]

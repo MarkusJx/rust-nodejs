@@ -1,4 +1,6 @@
+use regex::Regex;
 use ring::digest::Digest;
+use serde::Deserialize;
 use std::env;
 use std::ffi::OsStr;
 use std::fs::File;
@@ -7,6 +9,8 @@ use std::path::{Path, PathBuf};
 use strum::Display;
 
 const NODE_VERSION: &str = "v21.7.3";
+const USER_REPO: &str = "MarkusJx/rust-nodejs";
+
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Display)]
 #[strum(serialize_all = "camelCase")]
 enum TargetOS {
@@ -30,6 +34,12 @@ struct Config {
     full_icu: bool,
 }
 
+#[derive(Deserialize)]
+struct GithubRelease {
+    name: String,
+    body: String,
+}
+
 impl Config {
     fn zip_name(&self) -> String {
         format!(
@@ -43,7 +53,8 @@ impl Config {
 
     fn url(&self) -> String {
         format!(
-            "https://github.com/MarkusJx/rust-nodejs/releases/download/libnode-{}/{}",
+            "https://github.com/{}/releases/download/libnode-{}/{}",
+            USER_REPO,
             NODE_VERSION,
             self.zip_name()
         )
@@ -55,11 +66,13 @@ fn get_lib_name(path: &Path, os: Option<TargetOS>) -> Option<&str> {
         if path.extension()? != OsStr::new("lib") {
             return None;
         }
+
         path.file_stem()?.to_str()
     } else {
         if path.extension()? != OsStr::new("a") {
             return None;
         }
+
         let filename = path.file_stem()?.to_str()?;
         filename.strip_prefix("lib")
     }
@@ -76,6 +89,7 @@ fn sha256_digest(mut reader: impl io::Read) -> io::Result<Digest> {
         if count == 0 {
             break;
         }
+
         context.update(&buffer[..count]);
     }
 
@@ -93,18 +107,41 @@ fn verify_sha256_of_file(path: &Path, expected_hex: &str) -> anyhow::Result<()> 
         actual_hex,
         expected_hex
     );
+
     Ok(())
 }
 
-fn get_sha256_for_filename(filename: &str) -> Option<&'static str> {
-    for line in include_str!("checksums").split('\n') {
-        let mut line_component_iter = line.trim().split(' ');
-        let sha256 = line_component_iter.next()?.trim();
-        let fname = line_component_iter.next()?.strip_prefix('*')?;
-        if fname == filename {
-            return Some(sha256);
+fn get_sha256_for_filename(filename: &str) -> Option<String> {
+    let releases = attohttpc::get(format!(
+        "https://api.github.com/repos/{}/releases",
+        USER_REPO
+    ))
+    .header("X-GitHub-Api-Version", "2022-11-28")
+    .send()
+    .unwrap()
+    .json::<Vec<GithubRelease>>()
+    .unwrap();
+
+    for release in releases {
+        if release.name.ends_with(NODE_VERSION) {
+            let checksums_str = Regex::new(r"## SHA256 Checksums\r?\n```([^`]*)```")
+                .ok()?
+                .captures(&release.body)?
+                .get(1)?
+                .as_str();
+
+            for line in Regex::new(r"\r?\n").unwrap().split(checksums_str.trim()) {
+                let mut line_component_iter = line.trim().split(' ');
+                let sha256 = line_component_iter.next()?.trim();
+                let fname = line_component_iter.next()?.strip_prefix('*')?;
+
+                if fname == filename {
+                    return Some(sha256.to_owned());
+                }
+            }
         }
     }
+
     None
 }
 
@@ -164,12 +201,12 @@ fn main() -> anyhow::Result<()> {
         });
 
         let libnode_zip = out_dir.join(config.zip_name());
-        if verify_sha256_of_file(libnode_zip.as_path(), sha256).is_err() {
+        if verify_sha256_of_file(libnode_zip.as_path(), &sha256).is_err() {
             let url = config.url();
             println!("Downloading {}", url);
             download(url.as_str(), libnode_zip.as_path())?;
             println!("Verifying {:?}", libnode_zip.as_path());
-            verify_sha256_of_file(libnode_zip.as_path(), sha256)?;
+            verify_sha256_of_file(libnode_zip.as_path(), &sha256)?;
         }
 
         let libnode_extracted = out_dir.join("libnode_extracted");
