@@ -6,7 +6,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use strum::Display;
 
-const NODE_VERSION: &str = "v18.4.0";
+const NODE_VERSION: &str = "v21.7.3";
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Display)]
 #[strum(serialize_all = "camelCase")]
 enum TargetOS {
@@ -40,6 +40,7 @@ impl Config {
             if self.full_icu { "" } else { "-small_icu" }
         )
     }
+
     fn url(&self) -> String {
         format!(
             "https://github.com/MarkusJx/rust-nodejs/releases/download/libnode-{}/{}",
@@ -154,12 +155,15 @@ fn main() -> anyhow::Result<()> {
             },
             full_icu: env::var("CARGO_FEATURE_FULL_ICU").is_ok(),
         };
-        let sha256 = get_sha256_for_filename(config.zip_name().as_str()).unwrap_or_else(|| panic!(
-            "No sha256 checksum found for filename: {}",
-            config.zip_name().as_str()
-        ));
-        let libnode_zip = out_dir.join(config.zip_name());
 
+        let sha256 = get_sha256_for_filename(config.zip_name().as_str()).unwrap_or_else(|| {
+            panic!(
+                "No sha256 checksum found for filename: {}",
+                config.zip_name().as_str()
+            )
+        });
+
+        let libnode_zip = out_dir.join(config.zip_name());
         if verify_sha256_of_file(libnode_zip.as_path(), sha256).is_err() {
             let url = config.url();
             println!("Downloading {}", url);
@@ -183,29 +187,35 @@ fn main() -> anyhow::Result<()> {
         "cargo:rustc-link-search=native={}",
         lib_path.to_str().unwrap()
     );
+
     for file in std::fs::read_dir(lib_path)? {
         let file = file?;
         if !file.file_type()?.is_file() {
             continue;
         }
+
         let path = file.path();
         let lib_name = match get_lib_name(path.as_path(), os.clone().ok()) {
             Some(lib_name) => lib_name,
             None => continue,
         };
+
         println!("cargo:rustc-link-lib=static={}", lib_name);
     }
 
     let os_libs = match os {
         Ok(TargetOS::Darwin) => ["c++", "framework=CoreFoundation"].as_ref(),
         Ok(TargetOS::Linux) => ["stdc++"].as_ref(),
-        Ok(TargetOS::Win32) => {
-            ["dbghelp", "winmm", "iphlpapi", "psapi", "crypt32", "user32", "shell32", "ole32"].as_ref()
-        }
+        Ok(TargetOS::Win32) => [
+            "dbghelp", "winmm", "iphlpapi", "psapi", "crypt32", "user32", "shell32", "ole32",
+        ]
+        .as_ref(),
         Err(_) => [].as_ref(),
     };
+
     for os_lib_name in os_libs {
         println!("cargo:rustc-link-lib={}", *os_lib_name);
     }
+
     Ok(())
 }
