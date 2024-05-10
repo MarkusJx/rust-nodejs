@@ -110,7 +110,7 @@ jobs:
           run: |
             cd libnode
             python3 -m scripts.build
-            python -m scripts.postproc
+            python3 -m scripts.postproc
 
       - name: Postprocess
         run: python -m scripts.postproc
