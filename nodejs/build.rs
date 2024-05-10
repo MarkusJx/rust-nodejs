@@ -42,7 +42,7 @@ impl Config {
     }
     fn url(&self) -> String {
         format!(
-            "https://github.com/patr0nus/rust-nodejs/releases/download/libnode-{}/{}",
+            "https://github.com/MarkusJx/rust-nodejs/releases/download/libnode-{}/{}",
             NODE_VERSION,
             self.zip_name()
         )

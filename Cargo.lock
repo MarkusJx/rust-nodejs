@@ -245,16 +245,6 @@ dependencies = [
 
 [[package]]
 name = "libloading"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afe203d669ec979b7128619bae5a63b7b42e9203c1b29146079ee05e2f604b52"
-dependencies = [
- "cfg-if",
- "winapi",
-]
-
-[[package]]
-name = "libloading"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c2a198fb6b0eada2a8df47933734e6d35d350665a33a3593d7164fa52c75c19"
@@ -413,7 +403,7 @@ dependencies = [
 name = "nodejs-embedded"
 version = "0.1.0"
 dependencies = [
- "libloading 0.7.2",
+ "libloading 0.8.3",
  "nodejs",
  "objc",
  "path-absolutize",

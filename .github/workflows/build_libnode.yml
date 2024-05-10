@@ -177,7 +177,7 @@ jobs:
           tag: "libnode-${{ env.LIBNODE_NODE_VERSION }}"
           bodyFile: ${{ runner.temp }}/release_notes.md
       - name: Upload release assets
-        uses: csexton/release-asset-action@v2
+        uses: csexton/release-asset-action@v3
         with:
           pattern: ${{ runner.temp }}/zips/*.zip
           github-token: ${{ secrets.GITHUB_TOKEN }}
