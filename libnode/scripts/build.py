@@ -5,7 +5,6 @@ from . import config
 
 assert __name__ == "__main__"
 
-
 os.chdir('node-{}'.format(config.nodeVersion))
 
 configureArgvs = ['--enable-static'] + config.configFlags
@@ -28,4 +27,4 @@ else:
         })
     configureArgvs += ["--dest-cpu=" + config.arch]
     subprocess.check_call([sys.executable, 'configure.py'] + configureArgvs)
-    subprocess.check_call(['make', '-j4'])
+    subprocess.check_call(['make', f'-j{os.cpu_count() or 4}'])

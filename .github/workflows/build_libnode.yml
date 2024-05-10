@@ -110,13 +110,15 @@ jobs:
           run: |
             cd libnode
             python3 -m scripts.build
-      
-      - name: Fix permissions
-        run: sudo chown -R $(whoami) .
-        if: runner.os == 'Linux'
+            python -m scripts.postproc
 
       - name: Postprocess
         run: python -m scripts.postproc
+        if: runner.os != 'Linux'
+        
+      - name: Fix permissions
+        run: sudo chown -R $(whoami) .
+        if: runner.os == 'Linux'
 
       - name: Cleanup
         shell: bash
