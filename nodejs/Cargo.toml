@@ -18,19 +18,19 @@ full-icu = []
 napi = ["dep:napi", "dep:napi-derive"]
 
 [dependencies]
-once_cell = "^1.19"
+once_cell = "~1.19"
 neon = { optional = true, version = "0.10.1", default-features = false, features = [ "napi-latest" ] }
-libc = "^0.2"
-napi = { version = "^2.16", features = [ "dyn-symbols" ], optional = true }
-napi-derive = { version = "^2.16", optional = true }
+libc = "~0.2"
+napi = { version = "~2.16", features = [ "dyn-symbols" ], optional = true }
+napi-derive = { version = "~2.16", optional = true }
 
 [build-dependencies]
-ring = "^0.17"
-hex = "^0.4"
-zip-extract = "^0.1"
-strum = { version = "^0.26", features = [ "derive" ] }
-anyhow = "^1.0"
-regex = "^1.10"
-octocrab = "^0.38"
-tokio = "^1"
-attohttpc = { version = "^0.28", default-features = false, features = [ "rustls" ] }
+ring = "~0.17"
+hex = "~0.4"
+zip-extract = "~0.1"
+strum = { version = "~0.26", features = [ "derive" ] }
+anyhow = "~1.0"
+regex = "~1.10"
+octocrab = "~0.38"
+tokio = "~1"
+attohttpc = { version = "~0.28", default-features = false, features = [ "rustls" ] }
