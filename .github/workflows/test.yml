@@ -46,6 +46,7 @@ jobs:
         RS_NODEJS_CARGO_FEATURES: ${{ matrix.features }}
         RS_NODEJS_CARGO_TARGET: ${{ matrix.target }}
         RS_NODEJS_CARGO_TEST_ARGS: ${{ matrix.cargo_test_args }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       shell: bash
       run: |
         rustup target add $RS_NODEJS_CARGO_TARGET

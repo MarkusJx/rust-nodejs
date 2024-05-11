@@ -38,7 +38,7 @@ impl Config {
     fn zip_name(&self) -> String {
         format!(
             "libnode-{}-{}-{}{}.zip",
-            NODE_VERSION,
+            node_version(),
             self.os,
             self.arch,
             if self.full_icu { "" } else { "-small_icu" }
@@ -50,9 +50,16 @@ impl Config {
             "https://github.com/{}/{}/releases/download/libnode-{}/{}",
             USER,
             REPO,
-            NODE_VERSION,
+            node_version(),
             self.zip_name()
         )
+    }
+}
+
+fn node_version() -> String {
+    match env::var("NODE_VERSION") {
+        Ok(val) => val,
+        Err(_) => NODE_VERSION.to_string(),
     }
 }
 
@@ -112,7 +119,15 @@ fn get_sha256_for_filename(filename: &str) -> Option<String> {
         .build()
         .unwrap()
         .block_on(async move {
-            let octocrab = octocrab::instance();
+            let octocrab = match env::var("GITHUB_TOKEN") {
+                Ok(token) => octocrab::Octocrab::builder()
+                    .personal_token(token)
+                    .build()
+                    .unwrap()
+                    .into(),
+                Err(_) => octocrab::instance(),
+            };
+
             octocrab
                 .repos(USER, REPO)
                 .releases()
@@ -124,7 +139,9 @@ fn get_sha256_for_filename(filename: &str) -> Option<String> {
         });
 
     for release in releases {
-        if release.name.is_some() && release.name?.ends_with(NODE_VERSION) && release.body.is_some()
+        if release.name.is_some()
+            && release.name?.ends_with(&node_version())
+            && release.body.is_some()
         {
             let body = release.body.unwrap();
             let checksums_str = Regex::new(r"## SHA256 Checksums\r?\n```([^`]*)```")
