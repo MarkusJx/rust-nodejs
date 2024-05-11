@@ -271,6 +271,16 @@ fn main() -> anyhow::Result<()> {
         Err(_) => [].as_ref(),
     };
 
+    match os {
+        Ok(TargetOS::Darwin) | Ok(TargetOS::Linux) => {
+            println!("cargo:rustc-link-arg=-rdynamic");
+        }
+        Ok(TargetOS::Win32) => {
+            println!("cargo:rustc-target-feature=+crt-static");
+        }
+        _ => {}
+    }
+
     for os_lib_name in os_libs {
         println!("cargo:rustc-link-lib={}", *os_lib_name);
     }
