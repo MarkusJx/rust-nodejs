@@ -15,5 +15,4 @@ napi-derive = "2.16"
 
 [dev-dependencies]
 anyhow = "1"
-fs_extra = "1"
 chazi = "0.1"

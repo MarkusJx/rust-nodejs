@@ -57,7 +57,7 @@ impl Config {
 }
 
 fn node_version() -> String {
-    match env::var("NODE_VERSION") {
+    match env::var("RUST_NODE_VERSION") {
         Ok(val) => val,
         Err(_) => NODE_VERSION.to_string(),
     }
@@ -138,11 +138,9 @@ fn get_sha256_for_filename(filename: &str) -> Option<String> {
                 .items
         });
 
+    let version = node_version();
     for release in releases {
-        if release.name.is_some()
-            && release.name?.ends_with(&node_version())
-            && release.body.is_some()
-        {
+        if release.name.is_some() && release.name?.ends_with(&version) && release.body.is_some() {
             let body = release.body.unwrap();
             let checksums_str = Regex::new(r"## SHA256 Checksums\r?\n```([^`]*)```")
                 .ok()?
@@ -176,6 +174,7 @@ fn main() -> anyhow::Result<()> {
     if env::var_os("DOCS_RS").is_some() {
         return Ok(());
     }
+
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
     let os = match env::var("CARGO_CFG_TARGET_OS")?.as_str() {
         "macos" => Ok(TargetOS::Darwin),
@@ -183,12 +182,14 @@ fn main() -> anyhow::Result<()> {
         "linux" => Ok(TargetOS::Linux),
         other => Err(other.to_string()),
     };
+
     let arch = match env::var("CARGO_CFG_TARGET_ARCH")?.as_str() {
         "x86" => Ok(TargetArch::X86),
         "x86_64" => Ok(TargetArch::X64),
         "aarch64" => Ok(TargetArch::Arm64),
         other => Err(other.to_string()),
     };
+
     if let Ok(TargetOS::Win32) = os {
         let target_env = env::var("CARGO_CFG_TARGET_ENV")?;
         if target_env != "msvc" {
@@ -196,6 +197,7 @@ fn main() -> anyhow::Result<()> {
             anyhow::bail!("Unsupported Environment ABI: {}", target_env)
         }
     }
+
     println!("cargo:rerun-if-env-changed=LIBNODE_PATH");
     let libnode_path = if let Ok(libnode_path_from_env) = env::var("LIBNODE_PATH") {
         println!("cargo:rerun-if-changed={}", libnode_path_from_env);
@@ -237,7 +239,6 @@ fn main() -> anyhow::Result<()> {
     };
 
     std::fs::copy(libnode_path.join("sys.rs"), out_dir.join("sys.rs"))?;
-
     let lib_path = libnode_path.join("lib");
 
     println!(

@@ -1,10 +1,25 @@
-use fs_extra::dir::CopyOptions;
 use nodejs::neon::{
     context::Context,
     reflect::eval,
     types::{JsFunction, JsNumber, JsString},
 };
+use std::path::Path;
 use std::path::PathBuf;
+use std::{fs, io};
+
+fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
+    fs::create_dir_all(&dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } else {
+            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
 
 #[chazi::test(check_reach)]
 fn test_require_builtin() {
@@ -38,16 +53,8 @@ fn test_require_external_napi() {
         .unwrap()
         .to_string();
 
-    fs_extra::dir::copy(
-        napi_module_src_dir,
-        &napi_module_installed_dir,
-        &CopyOptions {
-            copy_inside: true,
-            overwrite: true,
-            ..Default::default()
-        },
-    )
-    .unwrap();
+    copy_dir_all(napi_module_src_dir, &napi_module_installed_dir).unwrap();
+
     let mut npm_install_cmd = if cfg!(target_os = "windows") {
         let mut cmd = std::process::Command::new("cmd");
         cmd.arg("/c").arg("npm");
