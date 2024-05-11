@@ -73,8 +73,6 @@ dependencies = [
  "http",
  "log",
  "rustls",
- "serde",
- "serde_json",
  "url",
  "webpki-roots",
 ]
