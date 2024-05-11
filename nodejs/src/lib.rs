@@ -1,9 +1,11 @@
 #![doc = include_str!("../README.md")]
 
+pub mod args;
 pub mod error;
 pub mod raw;
 mod sys;
 
+use args::NodeArgs;
 #[cfg(feature = "napi")]
 use napi::Env;
 #[cfg(feature = "neon")]
@@ -35,11 +37,14 @@ fn run_inner<F: FnOnce() -> Result<()>>(f: F) -> Result<()> {
 }
 
 #[cfg(feature = "neon")]
-pub fn run_neon<F: for<'a> FnOnce(ModuleContext<'a>) -> NeonResult<()>>(f: F) -> Result<()> {
-    run_inner(|| unsafe { raw::run_neon(f) })
+pub fn run_neon<F: for<'a> FnOnce(ModuleContext<'a>) -> NeonResult<()>>(
+    f: F,
+    args: Option<NodeArgs>,
+) -> Result<()> {
+    run_inner(|| unsafe { raw::run_neon(f, args) })
 }
 
 #[cfg(feature = "napi")]
-pub fn run_napi<F: FnOnce(Env) -> napi::Result<()>>(f: F) -> Result<()> {
-    run_inner(|| unsafe { raw::run_napi(f) })
+pub fn run_napi<F: FnOnce(Env) -> napi::Result<()>>(f: F, args: Option<NodeArgs>) -> Result<()> {
+    run_inner(|| unsafe { raw::run_napi(f, args) })
 }

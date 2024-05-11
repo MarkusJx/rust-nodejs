@@ -28,7 +28,7 @@ fn platform_res_path() -> Option<PathBuf> {
 }
 
 unsafe extern "C" fn node_start(napi_reg_func: *mut c_void) -> i32 {
-    nodejs::raw::run_raw(napi_reg_func)
+    nodejs::raw::run_raw(napi_reg_func, None)
         .err()
         .map_or(0, |e| e.code())
 }

@@ -8,6 +8,10 @@ impl NodeError {
         Self { message, code }
     }
 
+    pub fn generic<T: ToString>(message: T) -> Self {
+        Self::new(message.to_string(), 1)
+    }
+
     pub fn message(&self) -> &str {
         &self.message
     }

@@ -16,6 +16,7 @@ use napi::JsError;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int};
 
+use crate::args::NodeArgs;
 use crate::error::NodeError;
 use crate::sys;
 
@@ -24,11 +25,25 @@ use crate::sys;
 ///
 /// # Safety
 /// This function can only be called at most once.
-pub unsafe fn run_raw(napi_reg_func: *mut std::os::raw::c_void) -> crate::Result<()> {
-    let args: Vec<CString> = std::env::args()
-        .map(|arg| CString::new(arg).unwrap_or_default())
-        .collect();
-    let mut argc_c = Vec::<*const c_char>::with_capacity(args.len());
+pub unsafe fn run_raw(
+    napi_reg_func: *mut std::os::raw::c_void,
+    args: Option<NodeArgs>,
+) -> crate::Result<()> {
+    let node_args = args.unwrap_or_default();
+    let args = node_args.get_args()?;
+
+    if args.is_empty() {
+        return Err(NodeError::generic(
+            "Node.js requires at least one argument".to_string(),
+        ));
+    }
+
+    let args: Vec<CString> = args
+        .into_iter()
+        .map(|arg| CString::new(arg).map_err(|e| NodeError::generic(e.to_string())))
+        .collect::<crate::Result<_>>()?;
+
+    let mut argc_c = Vec::<*const c_char>::new();
     for arg in &args {
         argc_c.push(arg.as_ptr() as *const c_char)
     }
@@ -89,6 +104,7 @@ pub unsafe fn stop() -> crate::Result<()> {
 #[cfg(feature = "neon")]
 pub unsafe fn run_neon<F: for<'a> FnOnce(ModuleContext<'a>) -> NeonResult<()>>(
     f: F,
+    args: Option<NodeArgs>,
 ) -> crate::Result<()> {
     use std::ptr::null_mut;
     use std::sync::Once;
@@ -115,7 +131,7 @@ pub unsafe fn run_neon<F: for<'a> FnOnce(ModuleContext<'a>) -> NeonResult<()>>(
         m
     }
 
-    run_raw(napi_reg_func::<F> as _)
+    run_raw(napi_reg_func::<F> as _, args)
 }
 
 /// Starts a Node.js instance and immediately run the provided N-API module init function.
@@ -124,7 +140,10 @@ pub unsafe fn run_neon<F: for<'a> FnOnce(ModuleContext<'a>) -> NeonResult<()>>(
 /// # Safety
 /// This function can only be called at most once.
 #[cfg(feature = "napi")]
-pub unsafe fn run_napi<F: FnOnce(Env) -> napi::Result<()>>(f: F) -> crate::Result<()> {
+pub unsafe fn run_napi<F: FnOnce(Env) -> napi::Result<()>>(
+    f: F,
+    args: Option<NodeArgs>,
+) -> crate::Result<()> {
     use std::ptr::null_mut;
     use std::sync::Once;
 
@@ -154,5 +173,5 @@ pub unsafe fn run_napi<F: FnOnce(Env) -> napi::Result<()>>(f: F) -> crate::Resul
         exports
     }
 
-    run_raw(napi_reg_func::<F> as _)
+    run_raw(napi_reg_func::<F> as _, args)
 }
