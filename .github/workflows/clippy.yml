@@ -1,4 +1,4 @@
-name: Clippy Check
+name: Lint
 
 on:
   push:
@@ -16,17 +16,15 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  clippy_check:
-    continue-on-error: true
+  clippy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.7.3
         with:
-          toolchain: beta
-          default: true
-      - run: rustup component add clippy
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          key: clippy
+      - name: Check format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings

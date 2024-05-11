@@ -1,20 +1,20 @@
-#[cfg(feature = "neon")]
-use neon;
-#[cfg(feature = "neon")]
-use neon::context::ModuleContext;
-#[cfg(feature = "neon")]
-use neon::result::NeonResult;
 #[cfg(feature = "napi")]
 use napi::bindgen_prelude::napi_register_module_v1;
 #[cfg(feature = "napi")]
 use napi::sys::{napi_env, napi_value};
 #[cfg(feature = "napi")]
 use napi::Env;
+#[cfg(feature = "neon")]
+use neon;
+#[cfg(feature = "neon")]
+use neon::context::ModuleContext;
+#[cfg(feature = "neon")]
+use neon::result::NeonResult;
 
-use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_int};
 #[cfg(feature = "napi")]
 use napi::JsError;
+use std::ffi::{CStr, CString};
+use std::os::raw::{c_char, c_int};
 
 use crate::error::NodeError;
 use crate::sys;
@@ -43,9 +43,15 @@ pub unsafe fn run_raw(napi_reg_func: *mut std::os::raw::c_void) -> crate::Result
         let result_error_string = CString::from(CStr::from_ptr(result.error));
         libc::free(result.error as _);
 
-        Err(NodeError::new(result_error_string.to_string_lossy().into_owned(), result.exit_code as i32))
+        Err(NodeError::new(
+            result_error_string.to_string_lossy().into_owned(),
+            result.exit_code as i32,
+        ))
     } else if result.exit_code != 0 {
-        Err(NodeError::new("Node.js exited with a non-zero exit code".to_string(), result.exit_code as i32))
+        Err(NodeError::new(
+            "Node.js exited with a non-zero exit code".to_string(),
+            result.exit_code as i32,
+        ))
     } else {
         Ok(())
     }
@@ -54,7 +60,7 @@ pub unsafe fn run_raw(napi_reg_func: *mut std::os::raw::c_void) -> crate::Result
 /// Stops the running Node.js instance.
 /// Returns an error if Node.js is not running.
 /// Returns Ok(()) if Node.js is stopped successfully.
-/// 
+///
 /// # Safety
 /// This function should be safe as long as it is called after [`run_raw`] or [`run_neon`].
 pub unsafe fn stop() -> crate::Result<()> {
@@ -66,7 +72,10 @@ pub unsafe fn stop() -> crate::Result<()> {
             ""
         };
 
-        Err(NodeError::new(format!("Node.js failed to stop{error_str}"), code as i32))
+        Err(NodeError::new(
+            format!("Node.js failed to stop{error_str}"),
+            code as i32,
+        ))
     } else {
         Ok(())
     }
@@ -78,7 +87,9 @@ pub unsafe fn stop() -> crate::Result<()> {
 /// # Safety
 /// This function can only be called at most once.
 #[cfg(feature = "neon")]
-pub unsafe fn run_neon<F: for<'a> FnOnce(ModuleContext<'a>) -> NeonResult<()>>(f: F) -> crate::Result<()> {
+pub unsafe fn run_neon<F: for<'a> FnOnce(ModuleContext<'a>) -> NeonResult<()>>(
+    f: F,
+) -> crate::Result<()> {
     use std::ptr::null_mut;
     use std::sync::Once;
     static mut MODULE_INIT_FN: *mut std::ffi::c_void = null_mut(); // *mut Option<F>
@@ -107,6 +118,11 @@ pub unsafe fn run_neon<F: for<'a> FnOnce(ModuleContext<'a>) -> NeonResult<()>>(f
     run_raw(napi_reg_func::<F> as _)
 }
 
+/// Starts a Node.js instance and immediately run the provided N-API module init function.
+/// Blocks until the event loop stops, and returns the exit code.
+///
+/// # Safety
+/// This function can only be called at most once.
 #[cfg(feature = "napi")]
 pub unsafe fn run_napi<F: FnOnce(Env) -> napi::Result<()>>(f: F) -> crate::Result<()> {
     use std::ptr::null_mut;

@@ -1,6 +1,5 @@
 use regex::Regex;
 use ring::digest::Digest;
-use serde::Deserialize;
 use std::env;
 use std::ffi::OsStr;
 use std::fs::File;
@@ -9,7 +8,8 @@ use std::path::{Path, PathBuf};
 use strum::Display;
 
 const NODE_VERSION: &str = "v21.7.3";
-const USER_REPO: &str = "MarkusJx/rust-nodejs";
+const USER: &str = "MarkusJx";
+const REPO: &str = "rust-nodejs";
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Display)]
 #[strum(serialize_all = "camelCase")]
@@ -34,27 +34,22 @@ struct Config {
     full_icu: bool,
 }
 
-#[derive(Deserialize)]
-struct GithubRelease {
-    name: String,
-    body: String,
-}
-
 impl Config {
     fn zip_name(&self) -> String {
         format!(
             "libnode-{}-{}-{}{}.zip",
             NODE_VERSION,
-            self.os.to_string(),
-            self.arch.to_string(),
+            self.os,
+            self.arch,
             if self.full_icu { "" } else { "-small_icu" }
         )
     }
 
     fn url(&self) -> String {
         format!(
-            "https://github.com/{}/releases/download/libnode-{}/{}",
-            USER_REPO,
+            "https://github.com/{}/{}/releases/download/libnode-{}/{}",
+            USER,
+            REPO,
             NODE_VERSION,
             self.zip_name()
         )
@@ -112,21 +107,29 @@ fn verify_sha256_of_file(path: &Path, expected_hex: &str) -> anyhow::Result<()> 
 }
 
 fn get_sha256_for_filename(filename: &str) -> Option<String> {
-    let releases = attohttpc::get(format!(
-        "https://api.github.com/repos/{}/releases",
-        USER_REPO
-    ))
-    .header("X-GitHub-Api-Version", "2022-11-28")
-    .send()
-    .unwrap()
-    .json::<Vec<GithubRelease>>()
-    .unwrap();
+    let releases = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async move {
+            let octocrab = octocrab::instance();
+            octocrab
+                .repos(USER, REPO)
+                .releases()
+                .list()
+                .send()
+                .await
+                .unwrap()
+                .items
+        });
 
     for release in releases {
-        if release.name.ends_with(NODE_VERSION) {
+        if release.name.is_some() && release.name?.ends_with(NODE_VERSION) && release.body.is_some()
+        {
+            let body = release.body.unwrap();
             let checksums_str = Regex::new(r"## SHA256 Checksums\r?\n```([^`]*)```")
                 .ok()?
-                .captures(&release.body)?
+                .captures(&body)?
                 .get(1)?
                 .as_str();
 

@@ -33,6 +33,8 @@ unsafe extern "C" fn node_start(napi_reg_func: *mut c_void) -> i32 {
         .map_or(0, |e| e.code())
 }
 
+/// # Safety
+/// This method is safe as long as it is called once.
 pub unsafe fn main() -> i32 {
     let exec_dir = std::env::current_exe()
         .unwrap()
