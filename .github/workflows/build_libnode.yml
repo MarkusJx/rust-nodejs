@@ -148,6 +148,8 @@ jobs:
           options: -v ${{ github.workspace }}:/app
           run: |
             cd libnode
+            export RUSTFLAGS="-Clinker=clang"
+            export RUSTDOCFLAGS="-Clinker=clang"
             python3 -m scripts.test
 
   gh_release:
