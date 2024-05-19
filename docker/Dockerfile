@@ -12,6 +12,6 @@ RUN cargo install bindgen-cli
 
 ENV LIBNODE_NODE_VERSION="v21.7.3"
 ENV CCACHE_DIR="/app/.ccache"
-ENV CC="ccache gcc"
-ENV CXX="ccache g++"
+ENV CC="ccache clang"
+ENV CXX="ccache clang++"
 WORKDIR /app
