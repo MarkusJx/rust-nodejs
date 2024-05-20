@@ -1,0 +1,33 @@
+FROM rust:1-bookworm as build
+
+ARG node_version
+
+RUN apt-get update && apt-get upgrade -y &&\
+    apt-get install -y python3 build-essential libclang-dev clang git
+
+ADD . /app
+WORKDIR /app/libnode
+
+ENV LIBNODE_NODE_VERSION=$node_version
+ENV LIBNODE_CONFIG_FLAGS="--debug --enable-asan"
+
+RUN python3 -m scripts.download &&\
+    python3 -m scripts.patch &&\
+    CC=$(which clang) CXX=$(which clang++) python3 -m scripts.build &&\
+    cargo install bindgen-cli &&\
+    python3 -m scripts.postproc
+
+FROM rustlang/rust:nightly-bookworm-slim
+
+RUN rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu &&\
+    apt-get update && apt-get upgrade -y &&\
+    apt-get install -y clang libclang-dev
+
+COPY --from=build /app/libnode/libnode /libnode
+
+ENV RUSTFLAGS="-Clinker=clang -Zsanitizer=address"
+ENV RUSTDOCFLAGS="-Clinker=clang -Zsanitizer=address"
+ENV ASAN_OPTIONS="detect_leaks=0"
+ENV LIBNODE_PATH="/libnode"
+
+CMD [ "/bin/bash" ]

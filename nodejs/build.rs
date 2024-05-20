@@ -263,23 +263,13 @@ fn main() -> anyhow::Result<()> {
 
     let os_libs = match os {
         Ok(TargetOS::Darwin) => ["c++", "framework=CoreFoundation"].as_ref(),
-        Ok(TargetOS::Linux) => ["stdc++"].as_ref(),
+        Ok(TargetOS::Linux) => ["stdc++", "atomic"].as_ref(),
         Ok(TargetOS::Win32) => [
             "dbghelp", "winmm", "iphlpapi", "psapi", "crypt32", "user32", "shell32", "ole32",
         ]
         .as_ref(),
         Err(_) => [].as_ref(),
     };
-
-    match os {
-        Ok(TargetOS::Darwin) | Ok(TargetOS::Linux) => {
-            println!("cargo:rustc-link-arg=-rdynamic");
-        }
-        Ok(TargetOS::Win32) => {
-            println!("cargo:rustc-target-feature=+crt-static");
-        }
-        _ => {}
-    }
 
     for os_lib_name in os_libs {
         println!("cargo:rustc-link-lib={}", *os_lib_name);
